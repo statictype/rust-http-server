@@ -22,19 +22,24 @@ impl Server {
                         Ok(_) => {
                             println!("Received a request: {}", String::from_utf8_lossy(&buffer));
                             // creates a slice that contains the entire array [..]
-                            match Request::try_from(&buffer[..]) {
+                            let response = match Request::try_from(&buffer[..]) {
                                 Ok(request) => {
                                     // Request must implement the debug trait to be logged to the console
                                     // rustc provide basic impl for some traits, like debug - use the derive attr
                                     dbg!(request);
-                                    let response = Response::new(
+                                    Response::new(
                                         StatusCode::Ok,
                                         Some("<h1>it works!</h1>".to_string()),
-                                    );
-                                    // in order to write the response to the stream, it must implement display
-                                    write!(stream, "{}", response);
+                                    )
                                 }
-                                Err(err) => println!("There was an error: {}", err),
+                                Err(err) => {
+                                    println!("There was an error: {}", err);
+                                    Response::new(StatusCode::BadRequest, None)
+                                }
+                            };
+
+                            if let Err(e) = response.send(&mut stream) {
+                                println!("Failed to send response: {}", e);
                             }
                         }
                         Err(e) => println!("Failed to read from connection: {}", e),
